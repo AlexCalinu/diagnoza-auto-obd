@@ -123,6 +123,11 @@ def conectare_baza_date():
     return conexiune
 
 
+def vin_valid(vin):
+    # Un VIN are 17 caractere alfanumerice; literele I, O si Q nu sunt folosite
+    return len(vin) == 17 and vin.isalnum() and not any(c in vin for c in "IOQ")
+
+
 def cauta_masina_dupa_vin(vin):
     conexiune = conectare_baza_date()
     cursor = conexiune.cursor()
@@ -255,7 +260,8 @@ def genereaza_rezultate_scanare(modul_selectat, combustibil):
     }
 
     if combustibil == "Diesel":
-        toate_variantele["ECU Motor"].extend(["P2002", "P0401", "P0299"])
+        # dict.fromkeys elimina dublurile (P0401 si P0299 sunt deja in lista)
+        toate_variantele["ECU Motor"] = list(dict.fromkeys(toate_variantele["ECU Motor"] + ["P2002", "P0401", "P0299"]))
 
     rezultate = {}
 
@@ -326,6 +332,10 @@ def completeaza_dupa_vin():
 
     if not vin:
         messagebox.showwarning("VIN lipsă", "Introdu un VIN sau selectează manual marca, modelul și anul.")
+        return
+
+    if not vin_valid(vin):
+        messagebox.showwarning("VIN invalid", "Un VIN are exact 17 caractere (litere și cifre, fără I, O și Q).")
         return
 
     masina = cauta_masina_dupa_vin(vin)
@@ -409,6 +419,10 @@ def porneste_scanare():
         messagebox.showwarning("Date incomplete", "Selectează marca, modelul, anul, combustibilul, motorizarea și transmisia.")
         return
 
+    if vin and not vin_valid(vin):
+        messagebox.showwarning("VIN invalid", "Un VIN are exact 17 caractere (litere și cifre, fără I, O și Q).\nȘterge VIN-ul pentru o scanare doar după selecția manuală.")
+        return
+
     masina = cauta_sau_creeaza_masina(
         marca=marca,
         model=model,
@@ -424,6 +438,7 @@ def porneste_scanare():
 
     buton_scanare.config(state="disabled")
     buton_vin.config(state="disabled")
+    buton_reset.config(state="disabled")
 
     global animatie_activa, spinner_index
     animatie_activa = True
@@ -462,6 +477,7 @@ def ruleaza_etapa_scanare(index, etape_scanare, masina, modul_selectat, combusti
 
         buton_scanare.config(state="normal")
         buton_vin.config(state="normal")
+        buton_reset.config(state="normal")
 
 
 def afiseaza_rezultate_scanare(rezultate_scanare, id_scanare):
@@ -604,6 +620,35 @@ def stilizare_widgeturi():
         darkcolor=CULORI["border"]
     )
 
+    # Starea "readonly" are culori proprii in tema clam; fara asta textul iese gri pe gri
+    style.map(
+        "TCombobox",
+        fieldbackground=[("readonly", CULORI["panel2"]), ("disabled", CULORI["panel"])],
+        foreground=[("readonly", CULORI["text"]), ("disabled", CULORI["muted"])],
+        selectbackground=[("readonly", CULORI["panel2"])],
+        selectforeground=[("readonly", CULORI["text"])],
+        background=[("active", CULORI["border"]), ("readonly", CULORI["panel2"])],
+        arrowcolor=[("disabled", CULORI["muted"])]
+    )
+
+    # Lista care se deschide sub combobox
+    fereastra.option_add("*TCombobox*Listbox.background", CULORI["panel2"])
+    fereastra.option_add("*TCombobox*Listbox.foreground", CULORI["text"])
+    fereastra.option_add("*TCombobox*Listbox.selectBackground", CULORI["accent"])
+    fereastra.option_add("*TCombobox*Listbox.selectForeground", "#000000")
+    fereastra.option_add("*TCombobox*Listbox.font", ("Arial", 10))
+
+    style.configure(
+        "Vertical.TScrollbar",
+        background=CULORI["panel2"],
+        troughcolor=CULORI["bg"],
+        bordercolor=CULORI["border"],
+        arrowcolor=CULORI["accent"],
+        lightcolor=CULORI["panel2"],
+        darkcolor=CULORI["panel2"]
+    )
+    style.map("Vertical.TScrollbar", background=[("active", CULORI["border"])])
+
     style.configure(
         "TProgressbar",
         troughcolor=CULORI["panel2"],
@@ -640,6 +685,10 @@ fereastra.title("Sistem Premium Diagnoză Auto")
 fereastra.geometry("1250x780")
 fereastra.configure(bg=CULORI["bg"])
 fereastra.minsize(1100, 700)
+try:
+    fereastra.state("zoomed")  # Windows
+except tk.TclError:
+    fereastra.attributes("-zoomed", True)  # Linux
 
 stilizare_widgeturi()
 
@@ -921,7 +970,7 @@ text_rezultate = tk.Text(
 )
 text_rezultate.pack(side="left", fill="both", expand=True, padx=(15, 0), pady=(5, 15))
 
-scrollbar = tk.Scrollbar(frame_rezultate, command=text_rezultate.yview)
+scrollbar = ttk.Scrollbar(frame_rezultate, orient="vertical", command=text_rezultate.yview)
 scrollbar.pack(side="right", fill="y", padx=(0, 15), pady=(5, 15))
 
 text_rezultate.config(yscrollcommand=scrollbar.set)
