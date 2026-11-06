@@ -4,7 +4,7 @@ Aplicație desktop în Python (Tkinter + SQLite) care simulează un tester de di
 
 > Desktop app (Python, Tkinter, SQLite) that simulates an OBD-II diagnostic tool: vehicle lookup by VIN, module scan, DTC interpretation from a local database and scan history.
 
-<!-- Adauga aici o captura de ecran: screenshots/aplicatie.png -->
+![Sistem Diagnoza Auto](screenshots/aplicatie.png)
 
 ## Funcționalități
 
